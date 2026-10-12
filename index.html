@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rekenrek</title>
+<style>
+:root{--bg1:#ffffff;--bg2:#e9e9ec;--ink:#000;--mut:#8a8a8e;--sep:#d1d1d6;--green:#34c759;--orange:#ff9f0a}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg1:#2a2a2c;--bg2:#000;--ink:#fff;--mut:#98989f;--sep:#48484a}}
+:root[data-theme="dark"]{--bg1:#2a2a2c;--bg2:#000;--ink:#fff;--mut:#98989f;--sep:#48484a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2)) fixed;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+/* iPad 11" yatay tasarım tuvali: 1194 x 834, ekrana sığacak şekilde ölçeklenir */
+#stage{position:absolute;left:0;top:0;width:1194px;height:834px;transform-origin:0 0;padding:26px 40px 18px;display:flex;flex-direction:column;gap:14px}
+.calc,#login{border-radius:40px;background:linear-gradient(180deg,#2b2b2d,#1a1a1c);box-shadow:0 18px 40px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.06);color:#fff}
+.calc{flex:1;min-height:0;display:grid;grid-template-columns:1fr 400px;gap:28px;padding:28px}
+.left{display:flex;flex-direction:column;min-width:0;min-height:0}
+.disp{background:#47474a;border-radius:20px;padding:16px 22px 18px;box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+.hd{display:flex;justify-content:space-between;align-items:center;font-size:1.05rem;color:#c7c7cc;font-weight:600;margin-bottom:10px}
+.hd b{color:#ffd60a}
+.out{font:inherit;font-size:.9rem;font-weight:600;color:#e5e5ea;background:rgba(255,255,255,.14);border:0;border-radius:8px;padding:6px 12px;margin-left:14px;cursor:pointer}
+.seg{display:flex;background:rgba(0,0,0,.28);border-radius:10px;padding:3px;margin-bottom:8px}
+.seg button{flex:1;font:inherit;font-size:1.05rem;font-weight:500;color:#e5e5ea;background:none;border:0;border-radius:8px;padding:10px 4px;cursor:pointer}
+.seg button.on{background:#8e8e93;color:#fff;font-weight:600}
+.q{font-size:4.6rem;font-weight:300;display:flex;justify-content:center;align-items:center;gap:.28em;font-variant-numeric:tabular-nums;margin-top:6px}
+.ans{min-width:1.7em;min-height:1.2em;line-height:1.2;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;display:inline-block;text-align:center;font-weight:400}
+.msg{min-height:2.4em;font-size:1.25rem;font-weight:600;text-align:center;margin-top:6px;color:#c7c7cc;display:flex;align-items:center;justify-content:center}
+.msg.ok{color:#32d74b}.msg.no{color:#ffb340}
+.rek{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;margin-top:18px;padding:12px 26px;border-radius:24px;background:#2c2c2e;box-shadow:inset 0 2px 6px rgba(0,0,0,.4)}
+.row{display:flex;align-items:center;height:96px;position:relative;--b:56px}
+.row::before{content:"";position:absolute;left:0;right:0;top:50%;height:5px;margin-top:-2.5px;background:#636366;border-radius:3px}
+.sp{flex:1}
+.bead{position:relative;width:var(--b);height:var(--b);border-radius:50%;border:0;padding:0;flex:none;cursor:pointer;transition:transform .12s ease}
+.bead:active{transform:scale(.9)}
+.bead.r{background:radial-gradient(circle at 35% 30%,#ff8a80,#ff3b30 60%);box-shadow:0 3px 6px rgba(0,0,0,.5)}
+.bead.w{background:radial-gradient(circle at 35% 30%,#fff,#d1d1d6 85%);box-shadow:0 3px 6px rgba(0,0,0,.5)}
+.bead.hl{outline:4px solid var(--orange);outline-offset:3px}
+.cnt{text-align:center;color:#98989f;font-size:1.05rem;margin-top:8px;min-height:1.3em}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-content:center}
+.pad button{font:inherit;border:0;border-radius:50%;aspect-ratio:1;font-size:2.8rem;font-weight:400;cursor:pointer;color:#1c1c1e;background:radial-gradient(circle at 50% 30%,#e3e3e1,#c9c9c7);box-shadow:0 3px 4px rgba(0,0,0,.5)}
+.pad button:active{filter:brightness(1.25)}
+.pad .op{background:radial-gradient(circle at 50% 30%,#ffb340,#ff9500);color:#fff;font-size:1.3rem;font-weight:700}
+.pad .op.go{background:radial-gradient(circle at 50% 30%,#4cd964,#2fb350)}
+.pad .fn{background:radial-gradient(circle at 50% 30%,#636366,#48484a);color:#fff;font-size:1.4rem;font-weight:600}
+button:focus-visible,input:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+/* giriş ekranı */
+#login{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px}
+#login h1{margin:0;font-size:3.6rem;font-weight:300;letter-spacing:-.01em}
+#login .sub{color:#c7c7cc;font-size:1.2rem;margin-bottom:22px}
+#login label{color:#c7c7cc;font-size:1.05rem;font-weight:600}
+#name{font:inherit;font-size:2.2rem;width:520px;max-width:90%;text-align:center;color:#fff;background:#47474a;border:0;border-radius:16px;padding:16px 20px;box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+#name::placeholder{color:#8e8e93}
+#go{font:inherit;font-size:1.7rem;font-weight:700;color:#fff;background:radial-gradient(circle at 50% 30%,#ffb340,#ff9500);border:0;border-radius:999px;padding:16px 80px;margin-top:10px;cursor:pointer;box-shadow:0 3px 4px rgba(0,0,0,.5)}
+#go:active{filter:brightness(1.2)}
+#loginMsg{min-height:1.4em;color:#ffb340;font-weight:600;font-size:1.1rem}
+.note{color:#98989f;font-size:.95rem;max-width:620px;text-align:center}
+.link{font:inherit;font-size:.95rem;color:#98989f;background:none;border:0;text-decoration:underline;cursor:pointer;margin-top:6px}
+/* alt çubuk */
+.bar{flex:none;display:flex;justify-content:center;align-items:center;gap:26px;color:var(--mut);font-size:1rem;height:40px}
+.bar .t{display:flex;align-items:center;gap:14px}
+.sw{position:relative;width:51px;height:31px;flex:none}
+.sw input{opacity:0;position:absolute;inset:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;background:var(--sep);border-radius:16px;transition:.2s}
+.sw i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.3);transition:.2s}
+.sw input:checked+i{background:var(--green)}
+.sw input:checked+i::after{transform:translateX(20px)}
+</style>
+</head>
+<body>
+<div id="stage">
+
+ <div id="login">
+  <h1>Rekenrek</h1>
+  <div class="sub">Boncuklarla toplama çalışması</div>
+  <label for="name">Öğrenci adı veya kodu</label>
+  <input id="name" type="text" maxlength="30" autocomplete="off" placeholder="örn. Ö1">
+  <button id="go">Başla</button>
+  <div id="loginMsg"></div>
+  <div class="note">Öğrenci gizliliği için ad yerine kod (örn. Ö1, Ö2) yazmanız önerilir. Her öğrencinin verisi yazılan ada/koda göre ayrılır.</div>
+  <button class="link" id="csv">Bu cihazdaki kayıtları CSV olarak indir (yedek)</button>
+ </div>
+
+ <div class="calc" id="calc" hidden>
+  <div class="left">
+   <div class="disp">
+    <div class="hd"><span id="who">Rekenrek</span><span><b>★</b> <span id="stars">0</span><button class="out" id="out">Öğrenci değiştir</button></span></div>
+    <div class="seg" id="seg">
+     <button data-l="1" class="on">5'ten küçük</button><button data-l="2">5–10</button><button data-l="3">10–15</button><button data-l="4">15–20</button>
+    </div>
+    <div class="q"><span id="qa"></span><span>+</span><span id="qb"></span><span>=</span><span class="ans" id="ans"></span></div>
+    <div class="msg" id="msg"></div>
+   </div>
+   <div class="rek" id="rek"></div>
+   <div class="cnt" id="cnt"></div>
+  </div>
+  <div class="pad" id="pad"></div>
+ </div>
+
+ <div class="bar">
+  <span class="t"><span>Boncuk sayısını göster (öğretmen ayarı)</span><span class="sw"><input type="checkbox" id="showCnt" aria-label="Boncuk sayısını göster"><i></i></span></span>
+  <span id="kayit"></span>
+ </div>
+</div>
+
+<script>
+(function(){
+/* ====== AYARLAR ======
+   SCRIPT_URL : Google Apps Script "web uygulaması" adresi (https://script.google.com/macros/s/.../exec)
+   ANAHTAR    : Apps Script dosyasındaki ANAHTAR ile aynı olmalı */
+var SCRIPT_URL="https://sites.google.com/view/rekenrekbedirhan/ana-sayfa";
+var ANAHTAR="rekenrek-2026";
+
+var HEAD=["Zaman","Öğrenci","Oturum","Seviye","Soru No","Soru","Doğru Sonuç","Deneme No","Yazılan Cevap","Cevap Doğru (1/0)","Boncuk Sayısı","Boncuk Doğru (1/0)","Tam Doğru (1/0)","İlk Denemede Doğru (1/0)","Süre (sn)","Önceki Denemeden Süre (sn)"];
+var LEVELS={"1":"5'ten küçük","2":"5–10","3":"10–15","4":"15–20"};
+
+var rows=[0,0],q={a:0,b:0},typed="",wrong=0,hlSet={},stars=0,solved=false,last="",level="1";
+var student="",sessionId="",qNo=0,attemptNo=0,qStart=0,lastT=0,sessCount=0,store=[],pending=[];
+var $=function(id){return document.getElementById(id)};
+function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function p2(n){return n<10?"0"+n:""+n}
+function stamp(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds())}
+var START="Önce boncuklarla say, sonra cevabını yaz.";
+
+/* ---- ekrana sığdırma ---- */
+function fit(){
+  var s=Math.min(window.innerWidth/1194,window.innerHeight/834),st=$("stage");
+  st.style.transform="scale("+s+")";
+  st.style.left=Math.max(0,(window.innerWidth-1194*s)/2)+"px";
+  st.style.top=Math.max(0,(window.innerHeight-834*s)/2)+"px";
+}
+window.addEventListener("resize",fit);fit();
+
+/* ---- veri kaydı ---- */
+try{store=JSON.parse(localStorage.getItem("rk_rows")||"[]")}catch(e){store=[]}
+function saveStore(){try{localStorage.setItem("rk_rows",JSON.stringify(store))}catch(e){}}
+function updCount(){
+  $("kayit").textContent="Bu oturumda kaydedilen deneme: "+sessCount+(SCRIPT_URL?"":"  ·  Google E-Tablolar bağlantısı yok (yalnızca bu cihazda tutuluyor)");
+}
+function flush(){
+  if(!SCRIPT_URL)return;
+  var batch=pending.slice();pending=[];
+  batch.forEach(function(r){
+    fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:ANAHTAR,row:r})})
+      .catch(function(){pending.push(r)});
+  });
+}
+function logRow(r){store.push(r);saveStore();sessCount++;updCount();if(SCRIPT_URL){pending.push(r);flush()}}
+window.addEventListener("online",flush);
+function csv(){
+  if(!store.length){$("loginMsg").textContent="Bu cihazda kayıtlı veri yok.";return}
+  var lines=[HEAD].concat(store).map(function(r){
+    return r.map(function(v){v=String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(";");
+  });
+  var blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="rekenrek_veri.csv";
+  document.body.appendChild(a);a.click();a.remove();
+}
+
+/* ---- giriş ---- */
+var lastName="";try{lastName=localStorage.getItem("rk_last")||""}catch(e){}
+function showLogin(){
+  $("login").hidden=false;$("calc").hidden=true;
+  $("name").value=lastName;$("loginMsg").textContent="";
+  setTimeout(function(){try{$("name").focus()}catch(e){}},50);
+}
+function start(){
+  var n=$("name").value.trim();
+  if(!n){$("loginMsg").textContent="Önce öğrenci adı veya kodunu yaz.";return}
+  student=n.slice(0,30);lastName=student;
+  try{localStorage.setItem("rk_last",student)}catch(e){}
+  sessionId="S"+stamp(new Date()).replace(/[^0-9]/g,"");
+  stars=0;qNo=0;sessCount=0;$("stars").textContent="0";$("who").textContent=student;
+  $("login").hidden=true;$("calc").hidden=false;
+  updCount();flush();newQ();
+}
+$("go").onclick=start;
+$("name").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();start()}});
+$("out").onclick=showLogin;
+$("csv").onclick=csv;
+
+/* ---- soru üretimi ---- */
+function newQ(){
+  var R={"1":[2,4],"2":[5,10],"3":[11,15],"4":[16,19]}[level],pool=[],a,b,key,ch;
+  for(a=1;a<=19;a++)for(b=1;b<=9;b++){
+    var s=a+b;if(s<R[0]||s>R[1])continue;
+    if(a<10&&s>10)continue;
+    if(a>=10&&a%10+b>9)continue;
+    pool.push([a,b]);
+  }
+  do{ch=pool[rnd(0,pool.length-1)];key=ch[0]+"+"+ch[1]}while(key===last&&pool.length>1);
+  a=ch[0];b=ch[1];last=key;q={a:a,b:b};
+  rows=[0,0];typed="";wrong=0;hlSet={};solved=false;
+  qNo++;attemptNo=0;qStart=lastT=performance.now();
+  msg(START);setGo(false);draw();
+}
+function setGo(on){var k=$("kontrol");if(!k)return;k.textContent=on?"Sonraki":"Onayla";k.classList.toggle("go",on)}
+function draw(){
+  $("qa").textContent=q.a;$("qb").textContent=q.b;$("ans").textContent=typed;
+  var rek=$("rek");rek.innerHTML="";
+  for(var r=0;r<2;r++){
+    var row=document.createElement("div");row.className="row";
+    var L=[],R=[];
+    for(var i=0;i<10;i++)(i<rows[r]?L:R).push(i);
+    L.forEach(function(i){row.appendChild(bead(r,i))});
+    var sp=document.createElement("div");sp.className="sp";row.appendChild(sp);
+    R.forEach(function(i){row.appendChild(bead(r,i))});
+    rek.appendChild(row);
+  }
+  $("cnt").textContent=$("showCnt").checked?("Rekenrekte "+(rows[0]+rows[1])+" boncuk var"):"";
+}
+function bead(r,i){
+  var b=document.createElement("button");
+  b.className="bead "+(i<5?"r":"w")+(hlSet[r*10+i]?" hl":"");
+  b.setAttribute("aria-label",(r+1)+". sıra, "+(i+1)+". boncuk");
+  b.onclick=function(){rows[r]=(rows[r]===i+1)?i:i+1;hlSet={};draw()};
+  return b;
+}
+function say(t){try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="tr-TR";u.rate=.85;speechSynthesis.speak(u)}catch(e){}}
+function msg(t,c){$("msg").textContent=t;$("msg").className="msg "+(c||"")}
+function press(d){if(solved||typed.length>=2)return;typed+=d;$("ans").textContent=typed}
+function del(){if(!solved){typed=typed.slice(0,-1);$("ans").textContent=typed}}
+
+/* ---- tuş takımı ---- */
+function key(label,cls,fn,id,aria){
+  var b=document.createElement("button");b.textContent=label;b.className=cls||"";
+  if(id)b.id=id;if(aria)b.setAttribute("aria-label",aria);b.onclick=fn;$("pad").appendChild(b);
+}
+var dig=function(d){return function(){press(d)}};
+key("1","",dig("1"));key("2","",dig("2"));key("3","",dig("3"));
+key("4","",dig("4"));key("5","",dig("5"));key("6","",dig("6"));
+key("7","",dig("7"));key("8","",dig("8"));key("9","",dig("9"));
+key("Sil","fn",del,null,"Sil");key("0","",dig("0"));key("Onayla","op",check,"kontrol");
+
+$("seg").onclick=function(e){
+  var l=e.target.getAttribute&&e.target.getAttribute("data-l");if(!l)return;
+  level=l;Array.prototype.forEach.call($("seg").children,function(b){b.classList.toggle("on",b===e.target)});newQ();
+};
+$("showCnt").onchange=draw;
+
+/* ---- onaylama ve kayıt ---- */
+function check(){
+  if(solved){newQ();return}
+  if(typed===""){msg("Önce cevabı yaz.","no");return}
+  var now=performance.now(),sum=q.a+q.b,val=parseInt(typed,10),ok=val===sum,bt=rows[0]+rows[1],beadsOk=bt===sum,full=ok&&beadsOk;
+  attemptNo++;
+  logRow([stamp(new Date()),student,sessionId,LEVELS[level],qNo,q.a+" + "+q.b,sum,attemptNo,val,ok?1:0,bt,beadsOk?1:0,full?1:0,attemptNo===1?(full?1:0):"",Math.round((now-qStart)/100)/10,Math.round((now-lastT)/100)/10]);
+  lastT=now;
+  if(ok&&!beadsOk){msg("Cevabın doğru! Şimdi boncuklarla da "+q.a+" + "+q.b+" işlemini göster.","no");say("Cevabın doğru. Şimdi boncuklarla da göster.");return}
+  if(ok){
+    solved=true;stars++;$("stars").textContent=stars;
+    msg(q.a+" + "+q.b+" = "+sum+". Harika!","ok");say("Harika! "+q.a+" artı "+q.b+" eşittir "+sum);setGo(true);
+  }else{
+    wrong++;typed="";$("ans").textContent="";
+    msg(wrong>=2?"Sorun değil. Boncukları baştan, yavaşça say.":"Tekrar dene. Boncukları say, sonra yaz.","no");
+  }
+}
+document.addEventListener("keydown",function(e){
+  if(!$("login").hidden||(e.target&&e.target.tagName==="INPUT"))return;
+  if(/^[0-9]$/.test(e.key))press(e.key);
+  else if(e.key==="Backspace")del();
+  else if(e.key==="Enter"){e.preventDefault();check()}
+});
+
+updCount();showLogin();
+})();
+</script>
+</body>
+</html>
