@@ -44,6 +44,9 @@ body{background:linear-gradient(180deg,var(--bg1),var(--bg2)) fixed;color:var(--
 .pad .op{background:radial-gradient(circle at 50% 30%,#ffb340,#ff9500);color:#fff;font-size:1.3rem;font-weight:700}
 .pad .op.go{background:radial-gradient(circle at 50% 30%,#4cd964,#2fb350)}
 .pad .fn{background:radial-gradient(circle at 50% 30%,#636366,#48484a);color:#fff;font-size:1.4rem;font-weight:600}
+.pad .nx{grid-column:1/-1;aspect-ratio:auto;height:84px;border-radius:999px;background:radial-gradient(circle at 50% 30%,#4cd964,#2fb350);color:#fff;font-size:1.7rem;font-weight:700}
+.pad button:disabled{filter:none;cursor:default;opacity:.35}
+.pad .nx:disabled{background:#48484a;color:#c7c7cc}
 button:focus-visible,input:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
 /* giriş ekranı */
 #login{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px}
@@ -109,14 +112,14 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--orange);outline
 /* ====== AYARLAR ======
    SCRIPT_URL : Google Apps Script "web uygulaması" adresi (https://script.google.com/macros/s/.../exec)
    ANAHTAR    : Apps Script dosyasındaki ANAHTAR ile aynı olmalı */
-var SCRIPT_URL="https://docs.google.com/spreadsheets/d/1fKXDEo7JUXd5xuFEf1eD8tTwWKxC5H2UBSE05PssQxg/edit?gid=0#gid=0";
+var SCRIPT_URL="";
 var ANAHTAR="rekenrek-2026";
 
-var HEAD=["Zaman","Öğrenci","Oturum","Seviye","Soru No","Soru","Doğru Sonuç","Deneme No","Yazılan Cevap","Cevap Doğru (1/0)","Boncuk Sayısı","Boncuk Doğru (1/0)","Tam Doğru (1/0)","İlk Denemede Doğru (1/0)","Süre (sn)","Önceki Denemeden Süre (sn)"];
+var HEAD=["Cevap Zamanı","Öğrenci","Oturum","Seviye","Soru No","Soru","Doğru Sonuç","Yazılan Cevap","Cevap Doğru (1/0)","Boncuk Sayısı","Boncuk Doğru (1/0)","Tam Doğru (1/0)","Sonuç","Soru Başlangıcı","Süre (sn)"];
 var LEVELS={"1":"5'ten küçük","2":"5–10","3":"10–15","4":"15–20"};
 
-var rows=[0,0],q={a:0,b:0},typed="",wrong=0,hlSet={},stars=0,solved=false,last="",level="1";
-var student="",sessionId="",qNo=0,attemptNo=0,qStart=0,lastT=0,sessCount=0,store=[],pending=[];
+var rows=[0,0],q={a:0,b:0},typed="",hlSet={},stars=0,done=true,last="",level="1";
+var student="",sessionId="",qNo=0,qStart=0,qStartStamp="",lastSec=null,sessCount=0,store=[],pending=[];
 var $=function(id){return document.getElementById(id)};
 function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1))}
 function p2(n){return n<10?"0"+n:""+n}
@@ -133,16 +136,16 @@ function fit(){
 window.addEventListener("resize",fit);fit();
 
 /* ---- veri kaydı ---- */
-try{store=JSON.parse(localStorage.getItem("rk_rows")||"[]")}catch(e){store=[]}
-function saveStore(){try{localStorage.setItem("rk_rows",JSON.stringify(store))}catch(e){}}
+try{store=JSON.parse(localStorage.getItem("rk_rows2")||"[]")}catch(e){store=[]}
+function saveStore(){try{localStorage.setItem("rk_rows2",JSON.stringify(store))}catch(e){}}
 function updCount(){
-  $("kayit").textContent="Bu oturumda kaydedilen deneme: "+sessCount+(SCRIPT_URL?"":"  ·  Google E-Tablolar bağlantısı yok (yalnızca bu cihazda tutuluyor)");
+  $("kayit").textContent="Bu oturumda kaydedilen soru: "+sessCount+(lastSec!==null?"  ·  Son süre: "+lastSec+" sn":"")+(SCRIPT_URL?"":"  ·  Google E-Tablolar bağlantısı yok (yalnızca bu cihazda tutuluyor)");
 }
 function flush(){
   if(!SCRIPT_URL)return;
   var batch=pending.slice();pending=[];
   batch.forEach(function(r){
-    fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:ANAHTAR,row:r})})
+    fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:ANAHTAR,head:HEAD,row:r})})
       .catch(function(){pending.push(r)});
   });
 }
@@ -171,7 +174,7 @@ function start(){
   student=n.slice(0,30);lastName=student;
   try{localStorage.setItem("rk_last",student)}catch(e){}
   sessionId="S"+stamp(new Date()).replace(/[^0-9]/g,"");
-  stars=0;qNo=0;sessCount=0;$("stars").textContent="0";$("who").textContent=student;
+  stars=0;qNo=0;sessCount=0;lastSec=null;$("stars").textContent="0";$("who").textContent=student;
   $("login").hidden=true;$("calc").hidden=false;
   updCount();flush();newQ();
 }
@@ -191,11 +194,12 @@ function newQ(){
   }
   do{ch=pool[rnd(0,pool.length-1)];key=ch[0]+"+"+ch[1]}while(key===last&&pool.length>1);
   a=ch[0];b=ch[1];last=key;q={a:a,b:b};
-  rows=[0,0];typed="";wrong=0;hlSet={};solved=false;
-  qNo++;attemptNo=0;qStart=lastT=performance.now();
-  msg(START);setGo(false);draw();
+  rows=[0,0];typed="";hlSet={};done=false;
+  qNo++;qStartStamp=stamp(new Date());qStart=performance.now();
+  msg(START);setBtns();draw();
 }
-function setGo(on){var k=$("kontrol");if(!k)return;k.textContent=on?"Sonraki":"Onayla";k.classList.toggle("go",on)}
+function setBtns(){var k=$("kontrol"),n=$("sonraki");if(k)k.disabled=done;if(n)n.disabled=!done}
+function next(){if(done)newQ()}
 function draw(){
   $("qa").textContent=q.a;$("qb").textContent=q.b;$("ans").textContent=typed;
   var rek=$("rek");rek.innerHTML="";
@@ -214,13 +218,13 @@ function bead(r,i){
   var b=document.createElement("button");
   b.className="bead "+(i<5?"r":"w")+(hlSet[r*10+i]?" hl":"");
   b.setAttribute("aria-label",(r+1)+". sıra, "+(i+1)+". boncuk");
-  b.onclick=function(){rows[r]=(rows[r]===i+1)?i:i+1;hlSet={};draw()};
+  b.onclick=function(){if(done)return;rows[r]=(rows[r]===i+1)?i:i+1;hlSet={};draw()};
   return b;
 }
 function say(t){try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="tr-TR";u.rate=.85;speechSynthesis.speak(u)}catch(e){}}
 function msg(t,c){$("msg").textContent=t;$("msg").className="msg "+(c||"")}
-function press(d){if(solved||typed.length>=2)return;typed+=d;$("ans").textContent=typed}
-function del(){if(!solved){typed=typed.slice(0,-1);$("ans").textContent=typed}}
+function press(d){if(done||typed.length>=2)return;typed+=d;$("ans").textContent=typed}
+function del(){if(!done){typed=typed.slice(0,-1);$("ans").textContent=typed}}
 
 /* ---- tuş takımı ---- */
 function key(label,cls,fn,id,aria){
@@ -232,6 +236,7 @@ key("1","",dig("1"));key("2","",dig("2"));key("3","",dig("3"));
 key("4","",dig("4"));key("5","",dig("5"));key("6","",dig("6"));
 key("7","",dig("7"));key("8","",dig("8"));key("9","",dig("9"));
 key("Sil","fn",del,null,"Sil");key("0","",dig("0"));key("Onayla","op",check,"kontrol");
+key("Sonraki","nx",next,"sonraki");
 
 $("seg").onclick=function(e){
   var l=e.target.getAttribute&&e.target.getAttribute("data-l");if(!l)return;
@@ -241,26 +246,26 @@ $("showCnt").onchange=draw;
 
 /* ---- onaylama ve kayıt ---- */
 function check(){
-  if(solved){newQ();return}
+  if(done)return;
   if(typed===""){msg("Önce cevabı yaz.","no");return}
-  var now=performance.now(),sum=q.a+q.b,val=parseInt(typed,10),ok=val===sum,bt=rows[0]+rows[1],beadsOk=bt===sum,full=ok&&beadsOk;
-  attemptNo++;
-  logRow([stamp(new Date()),student,sessionId,LEVELS[level],qNo,q.a+" + "+q.b,sum,attemptNo,val,ok?1:0,bt,beadsOk?1:0,full?1:0,attemptNo===1?(full?1:0):"",Math.round((now-qStart)/100)/10,Math.round((now-lastT)/100)/10]);
-  lastT=now;
-  if(ok&&!beadsOk){msg("Cevabın doğru! Şimdi boncuklarla da "+q.a+" + "+q.b+" işlemini göster.","no");say("Cevabın doğru. Şimdi boncuklarla da göster.");return}
-  if(ok){
-    solved=true;stars++;$("stars").textContent=stars;
-    msg(q.a+" + "+q.b+" = "+sum+". Harika!","ok");say("Harika! "+q.a+" artı "+q.b+" eşittir "+sum);setGo(true);
+  /* süre burada durur ve Sonraki'ye basılana kadar işlemez */
+  var secs=Math.round((performance.now()-qStart)/10)/100;
+  var d=new Date(),sum=q.a+q.b,val=parseInt(typed,10),ok=val===sum,bt=rows[0]+rows[1],beadsOk=bt===sum,full=ok&&beadsOk;
+  done=true;lastSec=secs;
+  logRow([stamp(d),student,sessionId,LEVELS[level],qNo,q.a+" + "+q.b,sum,val,ok?1:0,bt,beadsOk?1:0,full?1:0,full?"Doğru":"Yanlış",qStartStamp,secs]);
+  if(full){
+    stars++;$("stars").textContent=stars;
+    msg(q.a+" + "+q.b+" = "+sum+". Harika!","ok");say("Harika! "+q.a+" artı "+q.b+" eşittir "+sum);
   }else{
-    wrong++;typed="";$("ans").textContent="";
-    msg(wrong>=2?"Sorun değil. Boncukları baştan, yavaşça say.":"Tekrar dene. Boncukları say, sonra yaz.","no");
+    msg(ok?"Cevabın doğru, ama boncuklar farklıydı. Sonraki soruya geçelim.":"Bu soru bitti. Sonraki soruya geçelim.","no");
   }
+  setBtns();
 }
 document.addEventListener("keydown",function(e){
   if(!$("login").hidden||(e.target&&e.target.tagName==="INPUT"))return;
   if(/^[0-9]$/.test(e.key))press(e.key);
   else if(e.key==="Backspace")del();
-  else if(e.key==="Enter"){e.preventDefault();check()}
+  else if(e.key==="Enter"){e.preventDefault();if(done)next();else check()}
 });
 
 updCount();showLogin();
